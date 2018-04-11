@@ -11,31 +11,30 @@
 </template>
 
 <script>
-import * as echarts from 'echarts';
 import WxCanvas from './wx-canvas';
+import * as echarts from 'echarts';
 
-let chart;
+let ctx;
+let chart
 
 export default {
   props: {
-    ec: {
-      type: Object,
-      default() {
-        return {}
-      }
-    },
     canvasId: {
       type: String,
-      default() {
-        return 'ec-canvas'
-      }
+      default: 'ec-canvas'
+    },
+
+    ec: {
+      type: Object
     }
   },
-  data () {
+
+  data() {
     return {
       chart: null
     }
   },
+
   onReady () {
     if (!this.ec) {
       console.warn('组件需绑定 ec 变量，例：<ec-canvas id="mychart-dom-bar" '
@@ -44,11 +43,14 @@ export default {
     }
 
     if (!this.ec.lazyLoad) {
-      setTimeout(() => this.init(), 50);
+      setTimeout(() => {
+        this.init();
+      }, 50);
     }
   },
+
   methods: {
-    init () {
+    init: function (callback) {
       const version = wx.version.version.split('.').map(n => parseInt(n, 10));
       const isValid = version[0] > 1 || (version[0] === 1 && version[1] > 9)
         || (version[0] === 1 && version[1] === 9 && version[2] >= 91);
@@ -59,32 +61,40 @@ export default {
         return;
       }
 
-      if (!this.ec.onInit) {
-        console.warn('请传入 onInit 函数进行初始化');
-        return;
-      }
+      ctx = wx.createCanvasContext(this.canvasId, this);
 
-      const { canvasId } = this;
-      const ctx = wx.createCanvasContext(canvasId);
-
-      const canvas = new WxCanvas(ctx);
+      const canvas = new WxCanvas(ctx, this.canvasId);
 
       echarts.setCanvasCreator(() => {
         return canvas;
       });
 
-      var query = wx.createSelectorQuery();
+      var query = wx.createSelectorQuery()
       query.select('.ec-canvas').boundingClientRect(res => {
-        if (!res) {
-          setTimeout(() => this.init(), 50);
-          return;
+        if (typeof callback === 'function') {
+          chart = callback(canvas, res.width, res.height);
         }
-        chart = this.ec.onInit(canvas, res.width, res.height);
+        else if (this.ec && this.ec.onInit) {
+          chart = this.ec.onInit(canvas, res.width, res.height);
+        }
       }).exec();
     },
-    touchStart (e) {
-      if (chart && e.mp.touches.length > 0) {
-        var touch = e.mp.touches[0];
+
+    canvasToTempFilePath(opt) {
+      if (!opt.canvasId) {
+        opt.canvasId = this.canvasId;
+      }
+
+      ctx.draw(true, () => {
+        wx.canvasToTempFilePath(opt, this);
+      });
+    },
+
+    touchStart(e) {
+      console.log('start')
+      if (!this.ec.disableTouch && chart &&e.mp.touches.length > 0) {
+        var touch =e.mp.touches[0];
+        console.log(touch.x, touch.y)
         chart._zr.handler.dispatch('mousedown', {
           zrX: touch.x,
           zrY: touch.y
@@ -95,18 +105,21 @@ export default {
         });
       }
     },
-    touchMove (e) {
-      if (chart && e.mp.touches.length > 0) {
-        var touch = e.mp.touches[0];
+
+    touchMove(e) {
+      console.log('move')
+      if (!this.ec.disableTouch && chart &&e.mp.touches.length > 0) {
+        var touch =e.mp.touches[0];
         chart._zr.handler.dispatch('mousemove', {
           zrX: touch.x,
           zrY: touch.y
         });
       }
     },
-    touchEnd (e) {
+
+    touchEnd(e) {
       setTimeout(() => {
-        if (chart) {
+        if (!this.ec.disableTouch && chart) {
           const touch = e.changedTouches ? e.changedTouches[0] : {};
           chart._zr.handler.dispatch('mouseup', {
             zrX: touch.x,
