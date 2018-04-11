@@ -105,19 +105,21 @@ export default {
       }
     },
     touchEnd (e) {
-      if (chart) {
-        const touch = e.changedTouches ? e.changedTouches[0] : {};
-        chart._zr.handler.dispatch('mouseup', {
-          zrX: touch.x,
-          zrY: touch.y
-        });
-        chart._zr.handler.dispatch('click', {
-          zrX: touch.x,
-          zrY: touch.y
-        });
-      }
+      setTimeout(() => {
+        if (chart) {
+          const touch = e.changedTouches ? e.changedTouches[0] : {};
+          chart._zr.handler.dispatch('mouseup', {
+            zrX: touch.x,
+            zrY: touch.y
+          });
+          chart._zr.handler.dispatch('click', {
+            zrX: touch.x,
+            zrY: touch.y
+          });
+        }
+      }, 50);
     }
-  } 
+  }
 }
 </script>
 
